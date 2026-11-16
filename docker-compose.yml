@@ -1,0 +1,220 @@
+# Local stack. Memory limits add up to about 5.4 GB; see README "Resource budget".
+name: ${COMPOSE_PROJECT_NAME:-lakehouse-cdc}
+
+x-s3-env: &s3-env
+  AWS_ACCESS_KEY_ID: ${S3_ACCESS_KEY}
+  AWS_SECRET_ACCESS_KEY: ${S3_SECRET_KEY}
+  AWS_REGION: us-east-1
+
+x-spark: &spark
+  build:
+    context: docker/spark
+  image: lakehouse-cdc/spark:3.5.6-iceberg1.10.1
+  environment:
+    <<: *s3-env
+    KAFKA_BOOTSTRAP_SERVERS: redpanda:9092
+    # Fewer glibc malloc arenas: less native memory held by the JVM's threads.
+    MALLOC_ARENA_MAX: "2"
+    CDC_MAX_OFFSETS_PER_TRIGGER: ${CDC_MAX_OFFSETS_PER_TRIGGER:-20000}
+    CDC_TRIGGER_INTERVAL: ${CDC_TRIGGER_INTERVAL:-2 seconds}
+  volumes:
+    - ./src:/opt/app/src:ro
+    - ./tests:/opt/app/tests:ro
+    - ./docker/spark/spark-defaults.conf:/opt/spark/conf/spark-defaults.conf:ro
+    - checkpoints:/checkpoints
+  mem_limit: 1900m
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    command:
+      - postgres
+      - -c
+      - wal_level=logical
+      - -c
+      - max_wal_senders=4
+      - -c
+      - max_replication_slots=4
+      - -c
+      - shared_buffers=64MB
+      # Cap WAL retained for a stalled slot so a dead connector cannot fill the disk.
+      - -c
+      - max_slot_wal_keep_size=1GB
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      CDC_USER: ${CDC_USER}
+      CDC_PASSWORD: ${CDC_PASSWORD}
+    ports:
+      - "${PG_PORT}:5432"
+    volumes:
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    mem_limit: 300m
+
+  redpanda:
+    image: redpandadata/redpanda:v24.3.6
+    command:
+      - redpanda
+      - start
+      - --mode=dev-container
+      - --smp=1
+      - --memory=700M
+      - --reserve-memory=0M
+      - --overprovisioned
+      - --node-id=0
+      - --check=false
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://localhost:${KAFKA_PORT}
+    ports:
+      - "${KAFKA_PORT}:19092"
+    volumes:
+      - redpanda:/var/lib/redpanda/data
+    healthcheck:
+      test: ["CMD-SHELL", "rpk cluster health | grep -q 'Healthy:.*true'"]
+      interval: 3s
+      timeout: 5s
+      retries: 40
+    mem_limit: 900m
+
+  connect:
+    image: quay.io/debezium/connect:3.0
+    depends_on:
+      redpanda: { condition: service_healthy }
+      postgres: { condition: service_healthy }
+    environment:
+      BOOTSTRAP_SERVERS: redpanda:9092
+      GROUP_ID: lakehouse-cdc-connect
+      CONFIG_STORAGE_TOPIC: _connect_configs
+      OFFSET_STORAGE_TOPIC: _connect_offsets
+      STATUS_STORAGE_TOPIC: _connect_status
+      HEAP_OPTS: -Xms256m -Xmx640m
+    ports:
+      - "${CONNECT_PORT}:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8083/connectors >/dev/null"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    mem_limit: 1000m
+
+  minio:
+    # MinIO no longer publishes images on Docker Hub; this is the Chainguard
+    # build of upstream MinIO. Only :latest is free, so it is pinned by digest.
+    image: cgr.dev/chainguard/minio@sha256:1ec745a06a986762f89e68e855fc189f403941eff8c0a5f94767e92c8e39d3f5
+    user: "0:0"
+    entrypoint: ["/usr/bin/minio", "server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    ports:
+      - "${MINIO_PORT}:9000"
+      - "${MINIO_CONSOLE_PORT}:9001"
+    volumes:
+      - minio:/data
+    mem_limit: 400m
+
+  minio-init:
+    image: cgr.dev/chainguard/minio-client@sha256:1260ca38acf78bf8d2833845fda6636b27388ab919b750d79f2c7167fb45ec74
+    depends_on:
+      minio: { condition: service_started }
+    environment:
+      MC_HOST_local: http://${S3_ACCESS_KEY}:${S3_SECRET_KEY}@minio:9000
+    entrypoint: ["/usr/bin/mc", "mb", "--ignore-existing", "local/${S3_BUCKET}"]
+    restart: on-failure
+    mem_limit: 100m
+
+  iceberg-rest:
+    image: apache/iceberg-rest-fixture:1.10.1
+    user: "0:0"
+    depends_on:
+      minio-init: { condition: service_completed_successfully }
+    environment:
+      <<: *s3-env
+      CATALOG_WAREHOUSE: s3://${S3_BUCKET}/
+      CATALOG_IO__IMPL: org.apache.iceberg.aws.s3.S3FileIO
+      CATALOG_S3_ENDPOINT: http://minio:9000
+      CATALOG_S3_PATH__STYLE__ACCESS: "true"
+      # Persist the catalog so a restart of this container does not orphan the
+      # tables. SQLite allows one writer: a single pooled connection plus a busy
+      # timeout serialises concurrent commits instead of failing them.
+      CATALOG_URI: jdbc:sqlite:/catalog/catalog.db?busy_timeout=30000&journal_mode=WAL
+      CATALOG_CLIENTS: "1"
+      JAVA_TOOL_OPTIONS: -Xmx192m
+    ports:
+      - "${ICEBERG_REST_PORT}:8181"
+    volumes:
+      - catalog:/catalog
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8181/v1/config >/dev/null"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+    mem_limit: 400m
+
+  trino:
+    image: trinodb/trino:476
+    depends_on:
+      iceberg-rest: { condition: service_healthy }
+    environment:
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY}
+      S3_SECRET_KEY: ${S3_SECRET_KEY}
+    ports:
+      - "${TRINO_PORT}:8080"
+    volumes:
+      - ./docker/trino/config.properties:/etc/trino/config.properties:ro
+      - ./docker/trino/jvm.config:/etc/trino/jvm.config:ro
+      - ./docker/trino/catalog/lake.properties:/etc/trino/catalog/lake.properties:ro
+    healthcheck:
+      # /v1/info is cheap; the CLI would start a JVM on every probe.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/v1/info | grep -q '\"starting\":false'"]
+      interval: 5s
+      timeout: 10s
+      retries: 40
+    mem_limit: 1800m
+
+  streaming:
+    <<: *spark
+    depends_on:
+      redpanda: { condition: service_healthy }
+      iceberg-rest: { condition: service_healthy }
+    command:
+      - /opt/spark/bin/spark-submit
+      - /opt/app/src/lakehouse_cdc/sparkjobs/streaming.py
+    ports:
+      - "${SPARK_UI_PORT}:4040"
+    # No restart policy on purpose: scripts/chaos.sh kills this container and
+    # decides when it comes back. A real deployment supervises it.
+    restart: "no"
+
+  # One-shot jobs. They share the Spark image and memory limit with the
+  # streaming job, so run them with the streaming job stopped.
+  maintenance:
+    <<: *spark
+    profiles: ["jobs"]
+    depends_on:
+      iceberg-rest: { condition: service_healthy }
+    entrypoint:
+      - /opt/spark/bin/spark-submit
+      - /opt/app/src/lakehouse_cdc/sparkjobs/maintenance.py
+
+  spark-test:
+    <<: *spark
+    profiles: ["jobs"]
+    volumes:
+      - ./src:/opt/app/src:ro
+      - ./tests:/opt/app/tests:ro
+    entrypoint: ["python3", "-m", "pytest", "-p", "no:cacheprovider", "/opt/app/tests/spark", "-q"]
+
+volumes:
+  pgdata:
+  redpanda:
+  minio:
+  catalog:
+  checkpoints:
