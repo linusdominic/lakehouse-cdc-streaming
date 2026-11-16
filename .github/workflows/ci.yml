@@ -1,0 +1,73 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --all-groups --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+      - name: dbt parse
+        run: uv run dbt parse --project-dir dbt
+        env:
+          DBT_PROFILES_DIR: dbt
+
+  terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: infra/terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - run: terraform fmt -check -recursive
+      - run: terraform init -backend=false
+      - run: terraform validate
+
+  spark-tests:
+    # The Spark sinks against the reference model, on a local Iceberg catalog.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: cp .env.example .env
+      - run: docker compose --profile jobs build spark-test
+      - run: docker compose --profile jobs run --rm --no-deps spark-test
+
+  integration:
+    # The whole stack: workload with injected faults, reconciliation, chaos test.
+    runs-on: ubuntu-latest
+    needs: [lint-and-unit, spark-tests]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: make up
+      - run: make demo
+      - run: make chaos
+      - run: make verify-negative
+      - name: Streaming job log
+        if: always()
+        run: docker compose logs --no-log-prefix streaming | grep -E '^\S+ \[' | tail -n 200
+      - name: Container state
+        if: failure()
+        run: docker compose ps -a && docker compose logs --tail 100 connect
+      - if: always()
+        run: make down
