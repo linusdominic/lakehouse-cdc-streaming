@@ -1,0 +1,13 @@
+# Local Trino from docker-compose. No secrets: the local Trino has no auth.
+lakehouse_cdc:
+  target: local
+  outputs:
+    local:
+      type: trino
+      method: none
+      user: dbt
+      host: localhost
+      port: "{{ env_var('TRINO_PORT', '18080') | int }}"
+      database: lake
+      schema: gold
+      threads: 2

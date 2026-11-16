@@ -1,0 +1,66 @@
+version: 2
+
+models:
+  - name: dim_borrower
+    description: One row per live borrower.
+    columns:
+      - name: borrower_id
+        data_tests: [unique, not_null]
+      - name: credit_band
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [PRIME_PLUS, PRIME, NEAR_PRIME, SUBPRIME]
+
+  - name: dim_loan
+    description: One row per live loan, current attributes.
+    columns:
+      - name: loan_id
+        data_tests: [unique, not_null]
+      - name: borrower_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_borrower')
+                field: borrower_id
+
+  - name: dim_loan_status_history
+    description: >
+      Type 2 dimension of loan status with half-open validity intervals.
+      Includes loans deleted at the source; their last version is DELETED.
+    columns:
+      - name: loan_status_key
+        data_tests: [unique, not_null]
+      - name: status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [CURRENT, DPD_30, DPD_60, DPD_90, DEFAULT, PAID_OFF, CHARGED_OFF, DELETED]
+
+  - name: fct_payments
+    description: One row per payment, with the loan's status at the time the payment was posted.
+    columns:
+      - name: payment_id
+        data_tests: [unique, not_null]
+      - name: loan_id
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_loan')
+                field: loan_id
+      - name: loan_status_key
+        description: Null would mean the payment falls outside every status interval of its loan.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_loan_status_history')
+                field: loan_status_key
+
+  - name: mart_delinquency_roll_rates
+    description: Monthly roll rates between loan statuses.
+    columns:
+      - name: roll_rate
+        data_tests: [not_null]

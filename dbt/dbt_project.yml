@@ -1,0 +1,19 @@
+name: lakehouse_cdc
+version: "0.1.0"
+config-version: 2
+profile: lakehouse_cdc
+
+model-paths: ["models"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: target
+clean-targets: ["target", "dbt_packages"]
+
+models:
+  lakehouse_cdc:
+    staging:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: gold
+      +materialized: table
