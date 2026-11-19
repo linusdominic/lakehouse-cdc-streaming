@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1040" height="403" viewBox="0 0 1040 403" role="img" aria-label="Architecture: a seeded workload generator writes transactions to Postgres 16; Debezium 3.0 on Kafka Connect publishes JSON change envelopes to Redpanda topics cdc.public.*, where the generator also injects replays and poison records. A Spark 3.5 Structured Streaming job (foreachBatch) writes Iceberg tables on MinIO: bronze.cdc_events, bronze.dead_letter and ops.stream_batches with an insert-only MERGE on topic, partition and offset, and the silver tables with a MERGE only where the incoming LSN is newer. Trino 476 and dbt-trino build the gold dimensions, fct_payments and the roll-rate mart. cdc verify reconciles Postgres against silver and bronze with row counts and checksums.">
+  <title>Architecture: a seeded workload generator writes transactions to Postgres 16; Debezium 3.0 on Kafka Connect publishes JSON change envelopes to Redpanda topics cdc.public.*, where the generator also injects replays and poison records. A Spark 3.5 Structured Streaming job (foreachBatch) writes Iceberg tables on MinIO: bronze.cdc_events, bronze.dead_letter and ops.stream_batches with an insert-only MERGE on topic, partition and offset, and the silver tables with a MERGE only where the incoming LSN is newer. Trino 476 and dbt-trino build the gold dimensions, fct_payments and the roll-rate mart. cdc verify reconciles Postgres against silver and bronze with row counts and checksums.</title>
+  <rect x="0.5" y="0.5" width="1039" height="402" rx="12" fill="#0d1117" stroke="#30363d"/>
+  <text x="28.0" y="40.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="17" font-weight="600" fill="#f0f6fc" text-anchor="start">From Postgres to the lake, and back to check</text>
+  <text x="28.0" y="60.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#9198a1" text-anchor="start">One docker compose stack. cdc verify compares Postgres with the lake row for row after the stream drains.</text>
+  <rect x="630.4" y="86.0" width="188.8" height="277.0" rx="10" fill="#151b23" stroke="#30363d"/>
+  <text x="642.4" y="105.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#9198a1" text-anchor="start">Iceberg 1.10 on MinIO</text>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9 z" fill="#757e8a"/></marker></defs>
+  <path d="M110.4,224.0 L110.4,256.0" fill="none" stroke="#757e8a" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M192.8,305.0 C212.8,305.0 209.8,305.0 229.8,305.0" fill="none" stroke="#757e8a" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M397.6,305.0 C417.6,305.0 414.6,305.0 434.6,305.0" fill="none" stroke="#757e8a" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M602.4,305.0 C622.4,305.0 619.4,170.0 639.4,170.0" fill="none" stroke="#757e8a" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M602.4,305.0 C622.4,305.0 619.4,305.0 639.4,305.0" fill="none" stroke="#757e8a" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M807.2,305.0 C827.2,305.0 824.2,305.0 844.2,305.0" fill="none" stroke="#757e8a" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M807.2,170.0 C827.2,170.0 824.2,170.0 844.2,170.0" fill="none" stroke="#757e8a" stroke-width="1.5" marker-end="url(#a)"/>
+  <path d="M929.6,259.0 L929.6,219.0" fill="none" stroke="#757e8a" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="28.0" y="116.0" width="164.8" height="108.0" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <rect x="29.0" y="124.0" width="3" height="92.0" rx="1.5" fill="#3987e5"/>
+  <text x="42.0" y="141.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#f0f6fc" text-anchor="start">Workload generator</text>
+  <text x="42.0" y="161.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">seeded Python; also</text>
+  <text x="42.0" y="177.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">injects replays and</text>
+  <text x="42.0" y="193.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">poison records into</text>
+  <text x="42.0" y="209.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">Redpanda</text>
+  <rect x="28.0" y="259.0" width="164.8" height="92.0" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <rect x="29.0" y="267.0" width="3" height="76.0" rx="1.5" fill="#3987e5"/>
+  <text x="42.0" y="284.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#f0f6fc" text-anchor="start">Postgres 16</text>
+  <text x="42.0" y="304.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">loans, payments,</text>
+  <text x="42.0" y="320.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">borrowers; logical</text>
+  <text x="42.0" y="336.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">replication</text>
+  <rect x="232.8" y="250.0" width="164.8" height="110.0" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <rect x="233.8" y="258.0" width="3" height="94.0" rx="1.5" fill="#4d5560"/>
+  <text x="246.8" y="275.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#f0f6fc" text-anchor="start">Debezium 3.0 to</text>
+  <text x="246.8" y="293.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#f0f6fc" text-anchor="start">Redpanda</text>
+  <text x="246.8" y="313.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">pgoutput to JSON</text>
+  <text x="246.8" y="329.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">envelopes on</text>
+  <text x="246.8" y="345.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">cdc.public.* topics</text>
+  <rect x="437.6" y="267.0" width="164.8" height="76.0" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <rect x="438.6" y="275.0" width="3" height="60.0" rx="1.5" fill="#4d5560"/>
+  <text x="451.6" y="292.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#f0f6fc" text-anchor="start">Spark streaming job</text>
+  <text x="451.6" y="312.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">Structured Streaming,</text>
+  <text x="451.6" y="328.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">foreachBatch</text>
+  <rect x="642.4" y="116.0" width="164.8" height="108.0" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <rect x="643.4" y="124.0" width="3" height="92.0" rx="1.5" fill="#199e70"/>
+  <text x="656.4" y="141.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#f0f6fc" text-anchor="start">bronze and ops</text>
+  <text x="656.4" y="161.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">cdc_events, dead_letter,</text>
+  <text x="656.4" y="177.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">stream_batches;</text>
+  <text x="656.4" y="193.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">insert-only MERGE on</text>
+  <text x="656.4" y="209.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">offset</text>
+  <rect x="642.4" y="259.0" width="164.8" height="92.0" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <rect x="643.4" y="267.0" width="3" height="76.0" rx="1.5" fill="#199e70"/>
+  <text x="656.4" y="284.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#f0f6fc" text-anchor="start">silver</text>
+  <text x="656.4" y="304.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">4 current-state tables,</text>
+  <text x="656.4" y="320.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">loan_status_scd2;</text>
+  <text x="656.4" y="336.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">MERGE if LSN is newer</text>
+  <rect x="847.2" y="124.0" width="164.8" height="92.0" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <rect x="848.2" y="132.0" width="3" height="76.0" rx="1.5" fill="#d95926"/>
+  <text x="861.2" y="149.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#f0f6fc" text-anchor="start">cdc verify</text>
+  <text x="861.2" y="169.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">row counts and</text>
+  <text x="861.2" y="185.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">checksums against</text>
+  <text x="861.2" y="201.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">Postgres</text>
+  <rect x="847.2" y="259.0" width="164.8" height="92.0" rx="8" fill="#0d1117" stroke="#30363d"/>
+  <rect x="848.2" y="267.0" width="3" height="76.0" rx="1.5" fill="#199e70"/>
+  <text x="861.2" y="284.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="13.5" font-weight="600" fill="#f0f6fc" text-anchor="start">Trino 476 and dbt</text>
+  <text x="861.2" y="304.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">gold: dim_*,</text>
+  <text x="861.2" y="320.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">fct_payments, roll-rate</text>
+  <text x="861.2" y="336.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">mart</text>
+  <rect x="113.4" y="233.5" width="78.5" height="16" rx="4" fill="#0d1117"/>
+  <text x="116.4" y="245.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#9198a1" text-anchor="start">transactions</text>
+  <rect x="932.6" y="229.5" width="56.4" height="16" rx="4" fill="#0d1117"/>
+  <text x="935.6" y="241.5" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="11.5" font-weight="400" fill="#9198a1" text-anchor="start">via Trino</text>
+  <rect x="28.0" y="383.0" width="3" height="12" rx="1.5" fill="#3987e5"/>
+  <text x="38.0" y="393.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">input</text>
+  <rect x="91.0" y="383.0" width="3" height="12" rx="1.5" fill="#4d5560"/>
+  <text x="101.0" y="393.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">step</text>
+  <rect x="150.5" y="383.0" width="3" height="12" rx="1.5" fill="#199e70"/>
+  <text x="160.5" y="393.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">stored result</text>
+  <rect x="261.6" y="383.0" width="3" height="12" rx="1.5" fill="#d95926"/>
+  <text x="271.6" y="393.0" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans', Helvetica, Arial, sans-serif" font-size="12" font-weight="400" fill="#9198a1" text-anchor="start">check</text>
+</svg>

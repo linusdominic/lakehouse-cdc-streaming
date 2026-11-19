@@ -19,6 +19,14 @@ deployed anywhere.
 
 ## Architecture
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/architecture-dark.svg">
+  <img alt="Architecture: a seeded workload generator writes transactions to Postgres 16; Debezium 3.0 on Kafka Connect publishes JSON change envelopes to Redpanda topics cdc.public.*, where the generator also injects replays and poison records. A Spark 3.5 Structured Streaming job (foreachBatch) writes Iceberg tables on MinIO: bronze.cdc_events, bronze.dead_letter and ops.stream_batches with an insert-only MERGE on topic, partition and offset, and the silver tables with a MERGE only where the incoming LSN is newer. Trino 476 and dbt-trino build the gold dimensions, fct_payments and the roll-rate mart. cdc verify reconciles Postgres against silver and bronze with row counts and checksums." src="docs/img/architecture-light.svg">
+</picture>
+
+<details>
+<summary>The same diagram as text, with more detail</summary>
+
 ```mermaid
 flowchart LR
     gen["Workload generator<br/>(Python, seeded)"] -->|"transactions"| pg[("Postgres 16<br/>logical replication")]
@@ -43,6 +51,8 @@ flowchart LR
     pg -.->|"row counts + checksums"| verify{{"cdc verify"}}
     trino -.-> verify
 ```
+
+</details>
 
 | Layer | Tables | Written by | Contract |
 | --- | --- | --- | --- |
@@ -83,6 +93,11 @@ laptop with 10 cores, Docker limited to 7.75 GiB, and a host load average
 between 10 and 15 from unrelated work running at the same time. Treat the
 latency and throughput numbers as "this stack, on a busy laptop", not as a
 benchmark. The pass/fail results do not depend on the machine.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/results-dark.svg">
+  <img alt="Reconciliation results from one session on 2026-11-17: 8 of 8 checks passed after the demo (20,000 transactions with 12,600 replayed records and 6 poison records); 8 of 8 passed after the chaos test (a SIGKILL, an offset replay and two failpoint crashes); all 53,512 Kafka records are accounted for, 53,506 in bronze and 6 dead letters, with no offset twice; and with silver corrupted on purpose 7 of 8 checks passed, with the changed and the deleted payment named." src="docs/img/results-light.svg">
+</picture>
 
 ### 1. The workload
 
