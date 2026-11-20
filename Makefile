@@ -3,7 +3,7 @@ SHELL := /bin/bash
 COMPOSE := docker compose
 export DBT_PROFILES_DIR := $(CURDIR)/dbt
 
-.PHONY: help up down demo verify verify-negative chaos maintenance dbt dbt-docs report test test-spark lint fmt logs ps trino
+.PHONY: help up stop down demo verify verify-negative chaos maintenance dbt dbt-docs report test test-spark lint fmt logs ps trino
 
 help: ## List targets
 	@grep -E '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F ':.*## ' '{printf "  %-14s %s\n", $$1, $$2}'
@@ -66,6 +66,9 @@ ps: ## Container status and memory
 
 trino: ## Open a Trino SQL shell on the lake catalog
 	$(COMPOSE) exec trino trino --catalog lake
+
+stop: ## Stop the containers but keep volumes and run artifacts (make up starts them again)
+	$(COMPOSE) --profile jobs stop
 
 down: ## Stop everything and delete all volumes and run artifacts
 	$(COMPOSE) --profile jobs down -v --remove-orphans

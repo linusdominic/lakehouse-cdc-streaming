@@ -72,6 +72,7 @@ make demo            # workload + faults, reconcile, lag report, compaction, rec
 make verify          # drain, then reconcile Postgres against silver (exit 1 on mismatch)
 make chaos           # kill the streaming job three ways mid-stream, replay offsets, reconcile
 make verify-negative # corrupt silver on purpose and watch verify fail, then roll back
+make stop            # stop the containers, keep volumes and data (make up starts them again)
 make down            # stop everything, delete volumes
 ```
 
@@ -80,7 +81,8 @@ Measured on my machine with images already pulled and built: `make up` 51 s,
 pulls the images (about 8.7 GB on disk in total) and builds the Spark image
 (downloads the Iceberg and Kafka jars), which depends on your connection. `make help` lists the
 other targets (`test`, `test-spark`, `lint`, `maintenance`, `dbt`, `report`,
-`trino`, `logs`, `ps`).
+`trino`, `logs`, `ps`), plus `fmt` (apply ruff fixes and formatting) and
+`dbt-docs` (generate dbt docs into `dbt/target`).
 
 Host ports are non-default on purpose: Postgres 15432, Kafka 19092, Kafka
 Connect 18083, MinIO 19000/19001, Iceberg REST 18181, Trino 18080, Spark UI
@@ -487,8 +489,9 @@ showed after the chaos run in this session:
 | trino (heap 1 GB) | 1800 MiB (raised from 1600 after seeing this) | 1458 MiB |
 | streaming (Spark local[4], heap 1100 MB) | 1900 MiB | 723 MiB just after a restart; 1.56 GiB RSS under load |
 
-About 4.5 GiB in use with the stream busy. The limits add up to more than
-that because they are ceilings, not reservations.
+About 4.5 GiB in use with the stream busy. The limits add up to 6800 MiB
+(about 6.6 GiB, counting the 100 MiB limit of the one-shot `minio-init`), more
+than that because they are ceilings, not reservations.
 
 The Spark container needed explicit caps on metaspace, code cache and direct
 memory (`docker/spark/spark-defaults.conf`). With a 1300 MB heap and no caps
@@ -555,6 +558,10 @@ Things that are not done, not verified, or true only with a caveat.
   settings.
 - **Security is out of scope locally.** Development passwords in
   `.env.example`, no TLS, no authentication on Trino, Connect or Redpanda.
+- **`make stop` followed by `make up` has not been run.** `make up` skips the
+  seed when Postgres already has data and updates the connector in place, so it
+  should resume from the kept volumes, but only `make down` and a fresh
+  `make up` have been exercised.
 - **Tested on macOS (Apple Silicon) with Docker Desktop only.** All images are
   multi-arch, but I have not run it on x86 Linux.
 

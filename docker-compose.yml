@@ -1,4 +1,6 @@
-# Local stack. Memory limits add up to about 5.4 GB; see README "Resource budget".
+# Local stack. Memory limits of the default services add up to 6800 MiB (about 6.6 GiB,
+# including the one-shot minio-init); the jobs profile adds 1900 MiB per container.
+# See README "Resource budget".
 name: ${COMPOSE_PROJECT_NAME:-lakehouse-cdc}
 
 x-s3-env: &s3-env
